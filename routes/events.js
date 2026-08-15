@@ -1,21 +1,22 @@
-import { Router } from 'express';
+import { MongoClient } from 'mongodb';
 
-import db from '../data/database.js';
+const uri = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER_ADDRESS}/?retryWrites=true&w=majority`;
 
-const router = Router();
+let client;
+let dbInstance;
 
-router.get('/', async (req, res) => {
-  const allEvents = await db.collection('events').find().toArray();
-  res.json({ events: allEvents });
-});
+export async function getDb() {
+  if (!dbInstance) {
+    client = new MongoClient(uri);
+    await client.connect();
+    dbInstance = client.db(process.env.MONGODB_DB_NAME);
+  }
+  return dbInstance;
+}
 
-router.post('/', async (req, res) => {
-  const eventData = req.body;
-  const result = await db.collection('events').insertOne({...eventData});
-  res.status(201).json({
-    message: 'Event created.',
-    event: { ...eventData, id: result.insertedId },
-  });
-});
-
-export default router;
+export async function closeConnection() {
+  if (client) {
+    await client.close();
+    dbInstance = null;
+  }
+}
